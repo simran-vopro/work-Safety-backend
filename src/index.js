@@ -24,8 +24,10 @@ mongoose
 app.use(cors());
 app.use(express.json());
 
+console.log(__dirname)
+
 // Static files (for images, etc.)
-app.use('/static', express.static(path.join(__dirname, 'public')));
+app.use('/static', express.static(path.join(__dirname, '../public')));
 
 // API Routes
 const categoryRoutes = require('./routes/categoryRoutes');
@@ -35,10 +37,6 @@ app.use('/api', productRoutes);
 
 // Serve frontend (Vite build)
 const frontendPath = path.join(__dirname, '../frontend', 'dist');
-console.log(frontendPath);
-
-
-
 app.use(express.static(frontendPath));
 
 
