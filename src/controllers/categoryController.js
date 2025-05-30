@@ -33,8 +33,10 @@ exports.getNestedCategories = async (req, res, next) => {
       })
     );
 
+    res.status(200).json({
+      data: results,
+    });
 
-    res.json(results);
   } catch (error) {
     next(error);
   }
