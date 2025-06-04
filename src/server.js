@@ -2,6 +2,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 
+
 // Next initialize the application
 const app = express();
 

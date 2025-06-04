@@ -11,7 +11,7 @@ const productSchema = new mongoose.Schema({
     ManufacturerCode: String,
     ISPCCombined: Number,
     VATCode: Number,
-    Brand: String,
+    Brand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand' },
     ExtendedCharacterDesc: String,
     CatalogueCopy: String,
     ImageRef: { type: String, alias: 'Image Ref' },
