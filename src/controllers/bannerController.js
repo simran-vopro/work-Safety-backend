@@ -1,4 +1,7 @@
 const Banner = require("../models/TopBanners");
+const FloatingBanner = require("../models/FloatingBanner");
+const fs = require('fs');
+const path = require('path');
 
 // Add Banner
 exports.addBanner = async (req, res) => {
@@ -57,5 +60,65 @@ exports.deleteBanner = async (req, res) => {
         res.status(200).json({ message: "Banner deleted" });
     } catch (error) {
         res.status(500).json({ error: "Failed to delete banner" });
+    }
+};
+
+// GET banner (only latest)
+exports.getBanner = async (req, res) => {
+    try {
+        const banner = await FloatingBanner.findOne().sort({ createdAt: -1 });
+        res.json({ data: banner });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch banner' });
+    }
+};
+
+// CREATE banner
+exports.createBanner = async (req, res) => {
+    const { title, description } = req.body;
+    const file = req.file;
+    if (!file) {
+        return res.status(400).json({ error: "Banner image is required" });
+    }
+    try {
+        const imageUrl = `/topBanners/${file.filename}`;
+        const newBanner = new FloatingBanner({ title, description, imageUrl });
+        await newBanner.save();
+        res.status(201).json({ data: newBanner, message: "Banner added Successfully" });
+    } catch (err) {
+        res.status(400).json({ error: 'Failed to create banner' });
+    }
+};
+
+// UPDATE banner by ID
+exports.updateFloatingBanner = async (req, res) => {
+    const { id } = req.params;
+    const { title, description } = req.body;
+    const file = req.file;
+
+    try {
+        const existingBanner = await FloatingBanner.findById(id);
+        if (!existingBanner) {
+            return res.status(404).json({ error: 'Banner not found' });
+        }
+
+        const updateData = { title, description };
+
+        if (file) {
+            // Delete the old image file
+            const oldImagePath = path.join(__dirname, '..', 'public', existingBanner.imageUrl); // adjust based on your setup
+            if (fs.existsSync(oldImagePath)) {
+                fs.unlinkSync(oldImagePath);
+            }
+
+            // Add new image path
+            updateData.imageUrl = `/topBanners/${file.filename}`;
+        }
+
+        const updatedBanner = await FloatingBanner.findByIdAndUpdate(id, updateData, { new: true });
+        res.json(updatedBanner);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to update banner' });
     }
 };
