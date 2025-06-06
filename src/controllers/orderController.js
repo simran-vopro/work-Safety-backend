@@ -1,7 +1,7 @@
 const Order = require('../models/Order');
 const Cart = require('../models/Cart');
 const nodemailer = require('nodemailer');
-
+const { nanoid } = require('nanoid');
 
 // Compare cart items with products sent in request
 const areSameProducts = (cartItems, requestProducts) => {
@@ -66,23 +66,34 @@ exports.requestQuote = async (req, res) => {
         }));
 
         // Build product rows HTML for email
+        // Build product rows HTML for email with clickable product links
         const productTableRows = simplifiedProducts.map((p) => `
-          <tr>
-            <td style="padding: 4px 8px; border: 1px solid #ddd;">${p.code}</td>
-            <td style="padding: 4px 8px; border: 1px solid #ddd;">${p.description}</td>
-            <td style="padding: 4px 8px; border: 1px solid #ddd; text-align: center;">${p.quantity}</td>
-            <td style="padding: 4px 8px; border: 1px solid #ddd; text-align: right;">£${p.unitPrice.toFixed(2)}</td>
-            <td style="padding: 4px 8px; border: 1px solid #ddd; text-align: right;">£${(p.unitPrice * p.quantity).toFixed(2)}</td>
-          </tr>
-        `).join('');
+  <tr>
+    <td style="padding: 4px 8px; border: 1px solid #ddd;">
+      <a href="https://work-safety-backend.onrender.com/projectDetails/${p.productId}" target="_blank" style="color: #007bff; text-decoration: none;">
+        ${p.code}
+      </a>
+    </td>
+    <td style="padding: 4px 8px; border: 1px solid #ddd;">
+      <a href="https://work-safety-backend.onrender.com/projectDetails/${p.productId}" target="_blank" style="color: #007bff; text-decoration: none;">
+        ${p.description}
+      </a>
+    </td>
+    <td style="padding: 4px 8px; border: 1px solid #ddd; text-align: center;">${p.quantity}</td>
+    <td style="padding: 4px 8px; border: 1px solid #ddd; text-align: right;">£${p.unitPrice.toFixed(2)}</td>
+    <td style="padding: 4px 8px; border: 1px solid #ddd; text-align: right;">£${(p.unitPrice * p.quantity).toFixed(2)}</td>
+  </tr>
+`).join('');
+
 
         // Calculate subtotal, VAT, total
         const subtotal = simplifiedProducts.reduce((sum, p) => sum + p.unitPrice * p.quantity, 0);
         const vat = subtotal * 0.20;
         const total = subtotal + vat;
-
+        const orderId = "ORD-" + nanoid(8);
         // 3. Save the order
         const newOrder = await Order.create({
+            orderId,
             email,
             fullName,
             address,
@@ -93,6 +104,7 @@ exports.requestQuote = async (req, res) => {
             sessionId,
             message: text,
             products: simplifiedProducts,
+
         });
 
         // 4. Email Setup
@@ -106,44 +118,6 @@ exports.requestQuote = async (req, res) => {
             },
         });
 
-        // Plain text version
-        const mailText = `
-Hi ${fullName},
-
-Thank you for reaching out to us – we’re delighted to support your PPE needs!
-Please find below your personalised quote, carefully prepared based on the items you requested:
-
-🛒 Quotation Summary
-Product\tDescription\tQty\tUnit Price\tTotal Price
-${simplifiedProducts.map(p =>
-            `${p.code}\t${p.description}\t${p.quantity}\t£${p.unitPrice.toFixed(2)}\t£${(p.unitPrice * p.quantity).toFixed(2)}`
-        ).join('\n')}
-
-Subtotal: £${subtotal.toFixed(2)}
-VAT (20%): £${vat.toFixed(2)}
-Total Payable: £${total.toFixed(2)}
-
-🛡️ Our Quality Commitment
-✅ All products meet the highest UK safety standards
-✅ Supplied with Declaration of Conformity (UK)
-✅ Products tested and compliant with relevant BS and EN safety norms
-✅ Next working day delivery available on all in-stock items (for orders placed before 1 PM)
-
-✅ Click below to confirm your order:
-👉 Place / Confirm Your Order Now
-
-If you need to make changes, request additional products, or have any questions, feel free to reply directly or reach out to us.
-
-We’re committed to helping your business stay safe and compliant—efficiently and affordably.
-
-Best regards,
-[Your Full Name]
-[Your Role]
-[Your Company Name]
-📞 [Phone Number]
-✉️ [Email Address]
-🌐 [Website URL]
-`;
 
         // HTML version
         const mailHtml = `
@@ -181,7 +155,10 @@ Please find below your personalised quote, carefully prepared based on the items
 </ul>
 
 <p>✅ Click below to confirm your order:<br />
-👉 <a href="YOUR_ORDER_CONFIRMATION_LINK" target="_blank" style="color: #007bff;">Place / Confirm Your Order Now</a></p>
+👉 <a href="https://work-safety-backend.onrender.com/confirm-order/${orderId}" target="_blank" style="color: #007bff;">
+  Place / Confirm Your Order Now
+</a>
+</p>
 
 <p>If you need to make changes, request additional products, or have any questions, feel free to reply directly or reach out to us.</p>
 
@@ -190,17 +167,16 @@ Please find below your personalised quote, carefully prepared based on the items
 <p>Best regards,<br />
 [Your Full Name]<br />
 [Your Role]<br />
-[Your Company Name]<br />
-📞 [Phone Number]<br />
-✉️ [Email Address]<br />
-🌐 [Website URL]</p>
+Work Wear Pvt. Ltd.<br />
+📞 xxxxxxxxx<br />
+✉️ hello@workwearcompany.co.uk<br />
+🌐 workwearcompany.co.uk</p>
 `;
 
         let mailOptions = {
             from: process.env.SMTP_FROM_EMAIL,
             to: email, // send to customer
             subject: `Your personalised quote - ${subject}`,
-            text: mailText,
             html: mailHtml,
         };
 
@@ -220,4 +196,51 @@ Please find below your personalised quote, carefully prepared based on the items
     }
 };
 
+exports.getOrder = async (req, res) => {
+    const { orderId } = req.params;
+    const { sessionId } = req.query;
+    if (!orderId || !sessionId) {
+        return res.status(400).json({ error: "Missing orderId or sessionId" });
+    }
 
+    try {
+        const order = await Order.findOne({ orderId });
+
+        if (!order) {
+            return res.status(404).json({ error: "Order not found" });
+        }
+
+        if (order.sessionId !== sessionId) {
+            return res.status(403).json({ error: "Session ID does not match this order" });
+        }
+
+        return res.json({ data: order });
+    } catch (error) {
+        console.error("Error fetching order:", error);
+        return res.status(500).json({ error: "Failed to fetch order" });
+    }
+};
+
+
+exports.editOrder = async (req, res) => {
+    const { orderId } = req.params;
+    const updateData = req.body;
+
+    try {
+        // Find the order by orderId and update it with the new data
+        const updatedOrder = await Order.findOneAndUpdate(
+            { orderId },
+            updateData,
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedOrder) {
+            return res.status(404).json({ error: 'Order not found' });
+        }
+
+        res.json({ message: 'Order updated successfully', order: updatedOrder });
+    } catch (err) {
+        console.error('Error updating order:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+}

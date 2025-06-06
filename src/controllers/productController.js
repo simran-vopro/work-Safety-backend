@@ -79,3 +79,28 @@ exports.getProducts = async (req, res, next) => {
   }
 };
 
+exports.getSingleProduct = async (req, res, next) => {
+  const { productId } = req.params;
+
+
+  if (!productId) {
+    return res.status(400).json({ error: "Missing productId" });
+  }
+
+  try {
+    const product = await Product.findById({ _id: productId });
+
+
+    if (!product) {
+      return res.status(404).json({ error: "product not found" });
+    }
+
+
+    return res.json({ data: product });
+  } catch (error) {
+    console.error("Error fetching product:", error);
+    return res.status(500).json({ error: "Failed to fetch product" });
+  }
+
+}
+
