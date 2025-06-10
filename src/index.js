@@ -3,16 +3,14 @@ const mongoose = require('mongoose');
 const morgan = require('morgan');
 const path = require('path');
 const cors = require('cors');
-const bodyParser = require('body-parser');
 require('dotenv').config();
 
 const app = express();
+
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: true }));
-
 app.use(morgan("short"));
 
 // DB connect
@@ -25,44 +23,36 @@ mongoose.connect(process.env.MONGODB_URI).then(() => {
   console.error('MongoDB connection error:', err);
 });
 
-
-
-// Static files (for images, etc.)
+// Static assets
 app.use('/static', express.static(path.join(__dirname, '../public')));
-
-// Serve files in public
-app.use("/static/topBanners", express.static(path.join(__dirname, "../public/topBanners")));
+app.use('/static/topBanners', express.static(path.join(__dirname, '../public/topBanners')));
 
 // API Routes
-const categoryRoutes = require('./routes/categoryRoutes');
-const productRoutes = require('./routes/productRoutes');
-const bannerRoutes = require('./routes/bannerRoutes');
-const cartRoutes = require('./routes/cartRoutes');
-const orderRoutes = require('./routes/orderRoutes');
+app.use('/api/categories', require('./routes/categoryRoutes'));
+app.use('/api', require('./routes/productRoutes'));
+app.use('/api/banner', require('./routes/bannerRoutes'));
+app.use('/api/cart', require('./routes/cartRoutes'));
+app.use('/api/order', require('./routes/orderRoutes'));
 
-app.use('/api/categories', categoryRoutes);
-app.use('/api', productRoutes);
-app.use('/api/banner', bannerRoutes);
-app.use('/api/cart', cartRoutes);
-app.use('/api/order', orderRoutes);
+// Serve frontend and admin (Vite build)
+const frontendPath = path.join(__dirname, '../frontend/dist');
+const adminPath = path.join(__dirname, '../admin/dist');
 
+// Serve static files
+app.use('/', express.static(frontendPath));
+app.use('/admin', express.static(adminPath));
 
-
-// Serve frontend (Vite build)
-const frontendPath = path.join(__dirname, '../frontend', 'dist');
-app.use(express.static(frontendPath));
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(frontendPath, 'index.html'));
+// Redirect `/admin` to `/admin/` to avoid path issues
+app.get('/admin', (req, res) => {
+  res.redirect('/admin/');
 });
 
+// Fallback for admin SPA
+app.get('/admin/*', (req, res) => {
+  res.sendFile(path.join(adminPath, 'index.html'));
+});
 
-// Catch-all: for SPA routes, serve index.html
-try {
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(frontendPath, 'index.html'));
-  });
-} catch (err) {
-  console.error('Error registering wildcard route:', err.message);
-}
-
+// Fallback for frontend SPA
+app.get(/^\/(?!admin).*$/, (req, res) => {
+  res.sendFile(path.join(frontendPath, 'index.html'));
+});
