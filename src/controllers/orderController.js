@@ -1,8 +1,10 @@
 const Order = require("../models/Order");
 const Cart = require("../models/Cart");
 const nodemailer = require("nodemailer");
-const { nanoid } = require("nanoid");
+const path = require("path");
 const { frontendUrl } = require("../utils/config");
+const generateOrderId = require("../utils/generateOrderId");
+const { default: axios } = require("axios");
 
 // Compare cart items with products sent in request
 const areSameProducts = (cartItems, requestProducts) => {
@@ -80,35 +82,59 @@ exports.requestQuote = async (req, res) => {
       unitPrice: p.productId.UnitPrice || 0,
     }));
 
-    const productTableRows = simplifiedProducts
-      .map(
-        (p) => `
+
+    let attachments = [];
+
+    const cidMap = await Promise.all(
+      simplifiedProducts.map(async (p, i) => {
+        try {
+          const response = await axios.get(p.image, { responseType: "arraybuffer" });
+          const cid = `product-${i}@quote`;
+          const ext = path.extname(p.image).slice(1) || "jpg";
+
+          attachments.push({
+            filename: `image${i}.${ext}`,
+            content: Buffer.from(response.data, "binary"),
+            cid: cid,
+          });
+
+          return cid;
+        } catch (error) {
+          console.warn(`Failed to download image ${p.image}: ${error.message}`);
+          return null; // fallback
+        }
+      })
+    );
+
+
+    const productTableRows = simplifiedProducts.map((p, i) => {
+      const cid = cidMap[i];
+      const imageTag = cid
+        ? `<img src="cid:${cid}" alt="${p.code}" style="width: 100px; height: auto; margin: 0 auto 4px;" />`
+        : "Image not available";
+
+      return `
   <tr>
+    <td style="padding: 4px 8px; border: 1px solid #ddd; text-align: center;">
+      ${imageTag}
+    </td>
     <td style="padding: 4px 8px; border: 1px solid #ddd;">
       <a href="${frontendUrl}/projectDetails/${p.productId}" target="_blank" style="color: #007bff; text-decoration: none;">
         ${p.code}
       </a>
     </td>
     <td style="padding: 4px 8px; border: 1px solid #ddd;">
-      <a href="https://work-safety-backend.onrender.com/projectDetails/${
-        p.productId
-      }" target="_blank" style="color: #007bff; text-decoration: none;">
+      <a href="https://work-safety-backend.onrender.com/projectDetails/${p.productId}" target="_blank" style="color: #007bff; text-decoration: none;">
         ${p.description}
       </a>
     </td>
-    <td style="padding: 4px 8px; border: 1px solid #ddd; text-align: center;">${
-      p.quantity
-    }</td>
-    <td style="padding: 4px 8px; border: 1px solid #ddd; text-align: right;">£${p.unitPrice.toFixed(
-      2
-    )}</td>
-    <td style="padding: 4px 8px; border: 1px solid #ddd; text-align: right;">£${(
-      p.unitPrice * p.quantity
-    ).toFixed(2)}</td>
+    <td style="padding: 4px 8px; border: 1px solid #ddd; text-align: center;">${p.quantity}</td>
+    <td style="padding: 4px 8px; border: 1px solid #ddd; text-align: right;">£${p.unitPrice.toFixed(2)}</td>
+    <td style="padding: 4px 8px; border: 1px solid #ddd; text-align: right;">£${(p.unitPrice * p.quantity).toFixed(2)}</td>
   </tr>
-`
-      )
-      .join("");
+  `;
+    }).join("");
+
 
     const subtotal = simplifiedProducts.reduce(
       (sum, p) => sum + p.unitPrice * p.quantity,
@@ -116,7 +142,9 @@ exports.requestQuote = async (req, res) => {
     );
     const vat = subtotal * 0.2;
     const total = subtotal + vat;
-    const orderId = "ORD-" + nanoid(8);
+    // const orderId = "ORD-" + nanoid(8);
+    const orderId = await generateOrderId();
+    console.log("orderId ==> ", orderId);
 
     const newOrder = await Order.create({
       orderId,
@@ -154,6 +182,7 @@ Please find below your personalised quote, carefully prepared based on the items
 <table style="border-collapse: collapse; width: 100%; max-width: 600px;">
   <thead>
     <tr>
+      <th style="border: 1px solid #ddd; padding: 8px;">Image</th>
       <th style="border: 1px solid #ddd; padding: 8px;">Product</th>
       <th style="border: 1px solid #ddd; padding: 8px;">Description</th>
       <th style="border: 1px solid #ddd; padding: 8px;">Qty</th>
@@ -202,6 +231,7 @@ Work Wear Pvt. Ltd.<br />
       to: email,
       subject: `Your personalised quote - ${subject}`,
       html: mailHtml,
+      attachments: attachments,
     };
 
     const info = await transporter.sendMail(mailOptions);
