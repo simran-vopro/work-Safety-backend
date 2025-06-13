@@ -3,7 +3,7 @@ const Product = require("../models/Product");
 
 // Add to cart (single global cart)
 exports.addCart = async (req, res) => {
-    const { productId, quantity, sessionId } = req.body;
+    const { productId, quantity, userId } = req.body;
 
     try {
         if (!productId || !quantity || quantity <= 0) {
@@ -15,15 +15,15 @@ exports.addCart = async (req, res) => {
             return res.status(404).json({ message: 'Product not found' });
         }
 
-        if (!sessionId) {
+        if (!userId) {
             return res.status(400).json({ message: 'Session ID required for guest cart' });
         }
 
-        let cart = await Cart.findOne({ sessionId });
+        let cart = await Cart.findOne({ userId });
 
         if (!cart) {
             cart = new Cart({
-                sessionId,
+                userId,
                 items: [{ productId, quantity }]
             });
         } else {
@@ -49,9 +49,9 @@ exports.updateCartQuantity = async (req, res) => {
         return res.status(400).json({ message: 'Request body is required' });
     }
 
-    const { productId, quantity, sessionId } = req.body;
+    const { productId, quantity, userId } = req.body;
 
-    if (!productId || !quantity || quantity <= 0 || !sessionId) {
+    if (!productId || !quantity || quantity <= 0 || !userId) {
         return res.status(400).json({
             message: 'Product ID, valid quantity, and session ID are required',
         });
@@ -63,7 +63,7 @@ exports.updateCartQuantity = async (req, res) => {
             return res.status(404).json({ message: 'Product not found' });
         }
 
-        const cart = await Cart.findOne({ sessionId });
+        const cart = await Cart.findOne({ userId });
         if (!cart) return res.status(404).json({ message: 'Cart not found' });
 
         const item = cart.items.find((i) => i.productId.toString() === productId);
@@ -80,16 +80,16 @@ exports.updateCartQuantity = async (req, res) => {
 };
 
 exports.removeCartItem = async (req, res) => {
-    const { productId, sessionId } = req.body;
+    const { productId, userId } = req.body;
 
-    if (!productId || !sessionId) {
+    if (!productId || !userId) {
         return res.status(400).json({
             message: 'Product ID and session ID are required',
         });
     }
 
     try {
-        const cart = await Cart.findOne({ sessionId });
+        const cart = await Cart.findOne({ userId });
         if (!cart) {
             return res.status(404).json({ message: 'Cart not found' });
         }
@@ -111,13 +111,13 @@ exports.removeCartItem = async (req, res) => {
 };
 
 exports.getCartProducts = async (req, res) => {
-    const { sessionId } = req.query;
+    const { userId } = req.query;
 
     try {
-        if (!sessionId) {
+        if (!userId) {
             return res.status(400).json({ message: 'Session ID required to get guest cart' });
         }
-        const cart = await Cart.find({ sessionId }).populate('items.productId')
+        const cart = await Cart.find({ userId }).populate('items.productId')
         if (!cart) return res.status(404).json({ message: 'Cart not found' });
         res.json({ data: cart });
     } catch (error) {

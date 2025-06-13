@@ -33,6 +33,8 @@ app.use('/api', require('./routes/productRoutes'));
 app.use('/api/banner', require('./routes/bannerRoutes'));
 app.use('/api/cart', require('./routes/cartRoutes'));
 app.use('/api/order', require('./routes/orderRoutes'));
+app.use('/api/query', require('./routes/queryRoutes'));
+app.use('/api/auth', require('./routes/authRoutes'));
 
 // Serve frontend and admin (Vite build)
 const frontendPath = path.join(__dirname, '../frontend/dist');

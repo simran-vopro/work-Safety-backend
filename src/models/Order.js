@@ -17,7 +17,7 @@ const orderSchema = new mongoose.Schema(
     city: { type: String, required: true },
     postcode: { type: String, required: true },
     company: { type: String, required: true },
-    sessionId: { type: String, required: true },
+    userId: { type: String, required: true },
     message: { type: String },
     products: [
       {
@@ -26,7 +26,10 @@ const orderSchema = new mongoose.Schema(
         description: String,
         image: String,
         quantity: Number,
+        buyPrice : Number,
         unitPrice: { type: Number },
+        gressPrice : Number,
+        commission : Number,
         totalPrice: { type: Number },
       },
     ],
