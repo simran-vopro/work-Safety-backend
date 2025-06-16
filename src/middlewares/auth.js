@@ -13,7 +13,6 @@ module.exports = function (req, res, next) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     req.user = decoded; // userId, email, or type can be embedded during login
-    console.log("decoded user ==> ", req.user)
     next();
   } catch (err) {
     res.status(400).json({ error: "Invalid token." });

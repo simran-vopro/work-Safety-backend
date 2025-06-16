@@ -15,7 +15,6 @@ app.use(morgan("short"));
 
 // DB connect
 mongoose.connect(process.env.MONGODB_URI).then(() => {
-  console.log('MongoDB connected');
   app.listen(process.env.PORT, () => {
     console.log(`Server listening on port ${process.env.PORT}`);
   });
