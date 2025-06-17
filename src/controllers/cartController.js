@@ -1,5 +1,6 @@
 const Cart = require("../models/Cart");
 const Product = require("../models/Product");
+const User = require("../models/User");
 
 // Add to cart (single global cart)
 exports.addCart = async (req, res) => {
@@ -16,22 +17,33 @@ exports.addCart = async (req, res) => {
         }
 
         if (!userId) {
-            return res.status(400).json({ message: 'Session ID required for guest cart' });
+            return res.status(400).json({ message: 'User ID required for guest cart' });
         }
+
+        const user = await User.findOne({ userId });
+        if (!user) {
+            const newUser = new User({
+                userId,
+                type: "guest",
+            });
+
+            await newUser.save();
+        }
+
 
         let cart = await Cart.findOne({ userId });
 
         if (!cart) {
             cart = new Cart({
                 userId,
-                items: [{ productId, quantity }]
+                items: [{ product: productId, quantity }]
             });
         } else {
-            const itemIndex = cart.items.findIndex(item => item.productId.toString() === productId);
+            const itemIndex = cart.items.findIndex(item => item.product.toString() === productId);
             if (itemIndex > -1) {
                 cart.items[itemIndex].quantity += quantity;
             } else {
-                cart.items.push({ productId, quantity });
+                cart.items.push({ product: productId, quantity });
             }
         }
 
@@ -84,7 +96,7 @@ exports.removeCartItem = async (req, res) => {
 
     if (!productId || !userId) {
         return res.status(400).json({
-            message: 'Product ID and session ID are required',
+            message: 'Product ID and user ID are required',
         });
     }
 
@@ -95,7 +107,7 @@ exports.removeCartItem = async (req, res) => {
         }
 
         const initialLength = cart.items.length;
-        cart.items = cart.items.filter(item => item.productId.toString() !== productId);
+        cart.items = cart.items.filter(item => item.product.toString() !== productId);
 
         if (cart.items.length === initialLength) {
             return res.status(404).json({ message: 'Product not found in cart' });
@@ -115,9 +127,9 @@ exports.getCartProducts = async (req, res) => {
 
     try {
         if (!userId) {
-            return res.status(400).json({ message: 'Session ID required to get guest cart' });
+            return res.status(400).json({ message: 'User ID required to get guest cart' });
         }
-        const cart = await Cart.find({ userId }).populate('items.productId')
+        const cart = await Cart.find({ userId }).populate('items.product')
         if (!cart) return res.status(404).json({ message: 'Cart not found' });
         res.json({ data: cart });
     } catch (error) {

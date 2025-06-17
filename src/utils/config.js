@@ -1,1 +1,1 @@
-export const frontendUrl = 'http://localhost:5173';
+export const frontendUrl = 'https://work-safety-backend.onrender.com';

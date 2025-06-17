@@ -9,9 +9,8 @@ const queriesSchema = new mongoose.Schema(
         address: { type: String, required: true },
         city: { type: String, required: true },
         company: { type: String, required: true },
-        userId: { type: String, required: true },
         message: { type: String },
-        document : {type: String}
+        document: { type: String }
     },
     { timestamps: true }
 );

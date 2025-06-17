@@ -1,32 +1,9 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const generateUserId = require("../utils/generateUserId");
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key";
-
-const generateUserId = async (type) => {
-    const prefixMap = {
-        "admin": "ADM",
-        "normal-user": "NOR",
-        "agent": "AGT",
-    };
-
-    const prefix = prefixMap[type];
-    if (!prefix) throw new Error("Invalid user type");
-
-    const lastUser = await User.find({ type })
-        .sort({ createdAt: -1 })
-        .limit(1);
-
-    let lastNumber = 0;
-    if (lastUser.length && lastUser[0].userId) {
-        const lastId = lastUser[0].userId;
-        lastNumber = parseInt(lastId.replace(prefix, "")) || 0;
-    }
-
-    const newId = `${prefix}${String(lastNumber + 1).padStart(3, "0")}`;
-    return newId;
-};
 
 exports.signUp = async (req, res) => {
     try {
@@ -81,16 +58,21 @@ exports.signUp = async (req, res) => {
 
 exports.login = async (req, res) => {
     try {
-        const { userIdOrEmail, password } = req.body;
+        const { userIdOrEmail, password, type } = req.body;
 
-        if (!userIdOrEmail || !password) {
+        if (!userIdOrEmail || !password || !type) {
             return res.status(400).json({ error: "User ID or Email and password are required" });
         }
 
-        const user = await User.findOne({userId: userIdOrEmail});
+        const user = await User.findOne({ userId: userIdOrEmail });
+
 
         if (!user) {
             return res.status(401).json({ error: "Invalid credentials" });
+        }
+
+        if (type != user.type) {
+            return res.status(403).json({ error: `Access denied for ${user.type}` });
         }
 
         const isMatch = await bcrypt.compare(password, user.password);

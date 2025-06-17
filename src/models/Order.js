@@ -3,22 +3,26 @@ const mongoose = require("mongoose");
 const orderSchema = new mongoose.Schema(
   {
     orderId: { type: String, required: true, unique: true },
-    email: { type: String, required: true },
-    phone: { type: String },
+    userId: { type: String, ref: "User" },
+
     billingAddress: { type: String },
     invoiceAddress: { type: String },
+
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
-    deliveryCharges: { type: Number, default: 0 },
-    deliveryInstructions: { type: String },
-    poNumber: { type: Number },
+    email: { type: String, required: true },
+    phone: { type: String },
     address: { type: String, required: true },
     address2: { type: String },
     city: { type: String, required: true },
     postcode: { type: String, required: true },
     company: { type: String, required: true },
-    userId: { type: String, required: true },
+
+    deliveryCharges: { type: Number, default: 0 },
+    deliveryInstructions: { type: String },
+    poNumber: { type: Number },
     message: { type: String },
+
     products: [
       {
         productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
@@ -26,13 +30,14 @@ const orderSchema = new mongoose.Schema(
         description: String,
         image: String,
         quantity: Number,
-        buyPrice : Number,
+        buyPrice: Number,
         unitPrice: { type: Number },
-        gressPrice : Number,
-        commission : Number,
+        gressPrice: Number,
+        commission: Number,
         totalPrice: { type: Number },
       },
     ],
+
     status: {
       type: String,
       enum: ["Pending", "Quotation Sent", "Order Received", "Shipped", "Delivered", "Cancelled"],

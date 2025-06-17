@@ -5,6 +5,8 @@ const path = require("path");
 const generateOrderId = require("../utils/generateOrderId");
 const { default: axios } = require("axios");
 const User = require("../models/User");
+const { frontendUrl } = require("../utils/config");
+const bcrypt = require("bcryptjs");
 
 // Compare cart items with products sent in request
 const areSameProducts = (cartItems, requestProducts) => {
@@ -12,11 +14,11 @@ const areSameProducts = (cartItems, requestProducts) => {
 
   const cartMap = new Map();
   cartItems.forEach((item) => {
-    cartMap.set(item.productId._id.toString(), item.quantity);
+    cartMap.set(item.product._id.toString(), item.quantity);
   });
 
   for (const p of requestProducts) {
-    const id = typeof p.productId === "string" ? p.productId : p.productId._id;
+    const id = typeof p.productId === "string" ? p.productId : p.product._id;
     const quantity = p.quantity;
     if (
       !cartMap.has(id.toString()) ||
@@ -28,6 +30,16 @@ const areSameProducts = (cartItems, requestProducts) => {
 
   return true;
 };
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT),
+  secure: process.env.SMTP_PORT == "465",
+  auth: {
+    user: process.env.SMTP_USERNAME,
+    pass: process.env.SMTP_PASSWORD,
+  },
+});
 
 exports.requestQuote = async (req, res) => {
   const {
@@ -50,7 +62,7 @@ exports.requestQuote = async (req, res) => {
   }
 
   try {
-    const cart = await Cart.findOne({ userId }).populate("items.productId");
+    const cart = await Cart.findOne({ userId }).populate("items.product");
 
     if (!cart) return res.status(404).json({ message: "Cart not found" });
 
@@ -59,10 +71,10 @@ exports.requestQuote = async (req, res) => {
     }
 
     const simplifiedProducts = products.map((p) => ({
-      productId: p.productId._id,
-      code: p.productId.Code,
-      description: p.productId.Description,
-      image: p.productId["Image Ref"],
+      productId: p.product._id,
+      code: p.product.Code,
+      description: p.product.Description,
+      image: p.product["Image Ref"],
       quantity: p.quantity,
     }));
 
@@ -146,13 +158,28 @@ exports.finalizeQuote = async (req, res) => {
 
       return `
 <tr>
-  <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${imageTag}</td>
-  <td style="border: 1px solid #ddd; padding: 8px;">${p.code}</td>
-  <td style="border: 1px solid #ddd; padding: 8px;">${p.description}</td>
-  <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${p.quantity}</td>
-  <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">£${p.unitPrice?.toFixed(2)}</td>
-  <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">£${p.totalPrice?.toFixed(2)}</td>
-</tr>`;
+  <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">
+    ${imageTag}
+  </td>
+  <td style="border: 1px solid #ddd; padding: 8px;">
+    <a href="${frontendUrl}/projectDetails/${p.productId}" target="_blank" style="color: #007bff;">
+      ${p.code}
+    </a>
+  </td>
+  <td style="border: 1px solid #ddd; padding: 8px;">
+    ${p.description}
+  </td>
+  <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">
+    ${p.quantity}
+  </td>
+  <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">
+    £${p.unitPrice?.toFixed(2) ?? '0.00'}
+  </td>
+  <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">
+    £${p.totalPrice?.toFixed(2) ?? '0.00'}
+  </td>
+</tr>
+`;
     }).join("");
 
     const mailHtml = `
@@ -192,7 +219,7 @@ Please find below your personalised quote, carefully prepared based on the items
 </ul>
 
 <p>✅ Click below to confirm your order:<br />
-👉 <a href="https://work-safety-backend.onrender.com/confirm-order/${orderId}" target="_blank" style="color: #007bff;">
+👉 <a href="${frontendUrl}/confirm-order/${orderId}" target="_blank" style="color: #007bff;">
   Place / Confirm Your Order Now
 </a>
 </p>
@@ -209,17 +236,6 @@ Work Wear Pvt. Ltd.<br />
 ✉️ hello@workwearcompany.co.uk<br />
 🌐 workwearcompany.co.uk</p>
 `;
-
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT),
-      secure: process.env.SMTP_PORT == "465",
-      auth: {
-        user: process.env.SMTP_USERNAME,
-        pass: process.env.SMTP_PASSWORD,
-      },
-    });
-
     await transporter.sendMail({
       from: process.env.SMTP_FROM_EMAIL,
       to: order.email,
@@ -294,24 +310,109 @@ exports.getOrder = async (req, res) => {
   }
 };
 
-exports.editOrder = async (req, res) => {
+exports.confirm_Order = async (req, res) => {
   const { orderId } = req.params;
   const updateData = req.body;
+  const { userId } = updateData;
 
   try {
-    // Find the order by orderId and update it with the new data
-    const updatedOrder = await Order.findOneAndUpdate({ orderId }, updateData, {
-      new: true,
-      runValidators: true,
-    });
+    // Step 1: Find the order
+    const existingOrder = await Order.findOne({ orderId });
 
-    if (!updatedOrder) {
+    if (!existingOrder) {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    res.json({ message: "Order updated successfully", order: updatedOrder });
+    // Step 2: Validate user ownership
+    if (existingOrder.userId !== userId) {
+      return res.status(403).json({ error: "Unauthorized: This order does not belong to you." });
+    }
+
+    // Step 3: Promote guest to registered user if needed
+    const existingUser = await User.findOne({ userId });
+
+    if (!existingUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+
+    const password = userId; //
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    if (existingUser.type === "guest") {
+      await User.findOneAndUpdate(
+        { userId },
+        {
+          type: "user",
+          password: hashedPassword,
+          email : existingOrder.email,
+          phone: existingOrder.phone,
+          firstName : existingOrder.firstName,
+          lastName: existingOrder.lastName,
+          address : existingOrder.address,
+          company : existingOrder.company,
+          city: existingOrder.city,
+        },
+        { new: true }
+      );
+    }
+
+    // Step 4: Confirm the order
+    const updatedOrder = await Order.findOneAndUpdate(
+      { orderId },
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+
+
+    const mailHtml = `
+  <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
+    <h2 style="color: #007bff;">Thank you for your order!</h2>
+
+    <p>Hi ${updatedOrder.name || "Customer"},</p>
+
+    <p>We’re pleased to inform you that your order <strong>#${updatedOrder.orderId}</strong> has been successfully placed.</p>
+
+    <p>Your account has been upgraded from guest to a registered user. You can now log in using the following credentials:</p>
+      <ul>
+        <li><strong>User ID:</strong> ${userId}</li>
+        <li><strong>Password:</strong> ${password}</li>
+      </ul>
+      <p>We recommend you log in and update your password for security reasons.</p>
+      <p><a href="${frontendUrl}/login" style="color: #007bff;">Click here to log in</a></p>
+      
+        
+    }
+
+    <p>If you have any questions, feel free to reach out to our support team.</p>
+
+    <p style="margin-top: 30px;">Best regards,<br/>The ${process.env.COMPANY_NAME || "Team"}</p>
+  </div>
+`;
+
+
+
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM_EMAIL,
+      to: updatedOrder.email,
+      subject: `Final Quote - Order ${updatedOrder.orderId}`,
+      html: mailHtml,
+    });
+
+    res.json({
+      message: "Order confirmed successfully",
+      order: updatedOrder,
+    });
+
   } catch (err) {
-    console.error("Error updating order:", err);
+    console.error("Error confirming order:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+
+
+
+
+
