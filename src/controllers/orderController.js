@@ -255,6 +255,9 @@ exports.getOrders = async (req, res) => {
   const userId = req.user.userId;
   let statusFilters = req.query.status; // can be string or array
 
+
+  console.log("user id ==> ", userId)
+
   try {
     const user = await User.findOne({ userId });
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -345,12 +348,12 @@ exports.confirm_Order = async (req, res) => {
         {
           type: "user",
           password: hashedPassword,
-          email : existingOrder.email,
+          email: existingOrder.email,
           phone: existingOrder.phone,
-          firstName : existingOrder.firstName,
+          firstName: existingOrder.firstName,
           lastName: existingOrder.lastName,
-          address : existingOrder.address,
-          company : existingOrder.company,
+          address: existingOrder.address,
+          company: existingOrder.company,
           city: existingOrder.city,
         },
         { new: true }
