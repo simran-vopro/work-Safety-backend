@@ -1,5 +1,5 @@
 const Category = require('../models/Category');
-const SubCategory = require('../models/SubCategory');
+const Subcategory = require('../models/Subcategory');
 const SubSubCategory = require('../models/SubSubCategory');
 const Brands = require('../models/Brand');
 
@@ -9,7 +9,7 @@ exports.getNestedCategories = async (req, res, next) => {
 
     const results = await Promise.all(
       categories.map(async (cat) => {
-        const subCats = await SubCategory.find({ Category1: cat._id });
+        const subCats = await Subcategory.find({ Category1: cat._id });
 
         const categories2 = await Promise.all(
           subCats.map(async (subCat) => {
@@ -55,7 +55,7 @@ exports.getTopCategories = async (req, res, next) => {
 
     const results = await Promise.all(
       categories.map(async (cat) => {
-        const subCats = await SubCategory.find({ Category1: cat._id });
+        const subCats = await Subcategory.find({ Category1: cat._id });
 
         const categories2 = await Promise.all(
           subCats.map(async (subCat) => {
