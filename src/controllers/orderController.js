@@ -56,6 +56,8 @@ exports.requestQuote = async (req, res) => {
     phone
   } = req.body;
 
+  console.log("req body ", req.body);
+
 
   if (!email || !products || !userId || !firstName || !lastName || !address) {
     return res.status(400).json({ error: "Missing required fields" });
@@ -74,7 +76,7 @@ exports.requestQuote = async (req, res) => {
       productId: p.product._id,
       code: p.product.Code,
       description: p.product.Description,
-      image: p.product["Image Ref"],
+      image: p.product.ImageRef,
       quantity: p.quantity,
     }));
 
@@ -115,6 +117,8 @@ exports.finalizeQuote = async (req, res) => {
   try {
     const order = await Order.findOne({ orderId }).populate("products.productId");
     if (!order) return res.status(404).json({ error: "Order not found" });
+
+    console.log("req.body", req.body)
 
     // Replace product data directly from frontend (already contains prices)
     order.products = products;
@@ -254,9 +258,6 @@ Work Wear Pvt. Ltd.<br />
 exports.getOrders = async (req, res) => {
   const userId = req.user.userId;
   let statusFilters = req.query.status; // can be string or array
-
-
-  console.log("user id ==> ", userId)
 
   try {
     const user = await User.findOne({ userId });

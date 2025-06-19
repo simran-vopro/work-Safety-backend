@@ -125,6 +125,8 @@ exports.removeCartItem = async (req, res) => {
 exports.getCartProducts = async (req, res) => {
     const { userId } = req.query;
 
+    console.log("user id==>", userId)
+
     try {
         if (!userId) {
             return res.status(400).json({ message: 'User ID required to get guest cart' });
