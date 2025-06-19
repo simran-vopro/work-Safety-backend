@@ -3,7 +3,7 @@ const Product = require('../models/Product');
 const Brand = require('../models/Brand');
 
 const Category = require('../models/Category');
-const Subcategory = require('../models/Subcategory');
+const Subcategory = require('../models/SubCategory');
 const SubChildCategory = require('../models/SubSubCategory');
 
 const csv = require('csv-parser');
