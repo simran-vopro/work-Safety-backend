@@ -1,5 +1,11 @@
 const mongoose = require('mongoose');
 const Product = require('../models/Product');
+const Brand = require('../models/Brand');
+const Category = require('../models/Category');
+const Subcategory = require('../models/Subcategory');
+const SubChildCategory = require('../models/SubSubCategory');
+const csv = require('csv-parser');
+const fs = require('fs');
 
 exports.getProducts = async (req, res, next) => {
   try {
@@ -104,3 +110,126 @@ exports.getSingleProduct = async (req, res, next) => {
 
 }
 
+// exports.uploadFile = async (req, res) => {
+//   try {
+//     if (!req.file) {
+//       return res.status(400).json({ message: "No file received" });
+//     }
+
+//     const filePath = req.file.path;
+//     const products = await parseProductCSV(filePath);
+
+//     try {
+//       const result = await Product.insertMany(products);
+//       console.log("Products inserted:", result.length);
+//     } catch (insertErr) {
+//       console.error("InsertMany Error:", insertErr);
+//       if (insertErr && insertErr.writeErrors) {
+//         insertErr.writeErrors.forEach((e, i) => {
+//           console.error(`Error ${i + 1}:`, e.err.op.Code, e.err.errmsg || e.err);
+//         });
+//       }
+//     }
+
+//     // Clean up CSV file
+//     try {
+//       fs.unlinkSync(filePath);
+//     } catch (unlinkErr) {
+//       console.error("File deletion error:", unlinkErr);
+//     }
+
+//     res.status(200).json({ message: "Upload process completed" });
+//   } catch (error) {
+//     console.error("Upload handler error:", {
+//       message: error.message,
+//       stack: error.stack,
+//     });
+//     res.status(500).json({ message: "Upload Failed", error: error.message });
+//   }
+// };
+
+
+async function resolveCategoryIds(row) {
+  const [cat1, cat2, cat3] = await Promise.all([
+    Category.findOne({ Category1: row.Category1 }),
+    Subcategory.findOne({ Category2: row.Category2 }),
+    SubChildCategory.findOne({ Category3: row.Category3 }),
+  ]);
+  return {
+    Category1: cat1?._id || null,
+    Category2: cat2?._id || null,
+    Category3: cat3?._id || null,
+  };
+}
+
+async function resolveBrandId(brandName) {
+  const brand = await Brand.findOne({ Brand: brandName });
+  return brand ? brand._id : null;
+}
+
+exports.uploadSimpleCSV = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'No file received' });
+
+    const filePath = req.file.path;
+    const rows = [];
+
+    fs.createReadStream(filePath)
+      .pipe(csv())
+      .on('data', (row) => rows.push(row))
+      .on('end', async () => {
+        try {
+          // Preload brands and categories into maps
+          const [brands, cats1, cats2, cats3] = await Promise.all([
+            Brand.find(),
+            Category.find(),
+            Subcategory.find(),
+            SubChildCategory.find(),
+          ]);
+
+          const brandMap = new Map(brands.map(b => [b.Brand, b._id]));
+          const cat1Map = new Map(cats1.map(c => [c.Category1, c._id]));
+          const cat2Map = new Map(cats2.map(c => [c.Category2, c._id]));
+          const cat3Map = new Map(cats3.map(c => [c.Category3, c._id]));
+
+          const products = [];
+
+          for (const row of rows) {
+            const product = {
+              Code: row.Code || row.Style,
+              Description: row.Description,
+              Pack: parseFloat(row.Pack),
+              rrp: parseFloat(row.rrp),
+              GrpSupplier: row.GrpSupplier,
+              GrpSupplierCode: row.GrpSupplierCode,
+              Manufacturer: row.Manufacturer,
+              ManufacturerCode: row.ManufacturerCode,
+              ISPCCombined: parseInt(row.ISPCCombined),
+              VATCode: parseInt(row.VATCode),
+              Brand: brandMap.get(row.Brand) || null,
+              ExtendedCharacterDesc: row.ExtendedCharacterDesc,
+              CatalogueCopy: row.CatalogueCopy,
+              ImageRef: row['Image Ref'],
+              Category1: cat1Map.get(row.Category1) || null,
+              Category2: cat2Map.get(row.Category2) || null,
+              Category3: cat3Map.get(row.Category3) || null,
+              Style: row.Style,
+            };
+
+            products.push(product);
+          }
+
+          await Product.insertMany(products, { ordered: false });
+          fs.unlinkSync(filePath);
+
+          res.status(200).json({ message: 'Products uploaded successfully', count: products.length });
+        } catch (err) {
+          console.error('Upload error:', err);
+          res.status(500).json({ message: 'Upload failed', error: err.message });
+        }
+      });
+  } catch (err) {
+    console.error('Upload handler error:', err);
+    res.status(500).json({ message: 'Upload failed', error: err.message });
+  }
+};

@@ -28,7 +28,7 @@ app.use('/static/topBanners', express.static(path.join(__dirname, '../public/top
 
 // API Routes
 app.use('/api/categories', require('./routes/categoryRoutes'));
-app.use('/api', require('./routes/productRoutes'));
+app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/banner', require('./routes/bannerRoutes'));
 app.use('/api/cart', require('./routes/cartRoutes'));
 app.use('/api/order', require('./routes/orderRoutes'));
