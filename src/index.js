@@ -15,8 +15,8 @@ app.use(morgan("short"));
 
 // DB connect
 mongoose.connect(process.env.MONGODB_URI).then(() => {
-  app.listen(process.env.PORT, () => {
-    console.log(`Server listening on port ${process.env.PORT}`);
+  app.listen(process.env.PORT, '0.0.0.0', () => {
+    console.log(`Server listening on http://0.0.0.0:${process.env.PORT}`);
   });
 }).catch((err) => {
   console.error('MongoDB connection error:', err);
@@ -68,6 +68,12 @@ try {
 
 try {
   app.use('/api/auth', require('./routes/authRoutes.js'));
+} catch (err) {
+  console.error('❌ Failed to load authRoutes:', err.message);
+}
+
+try {
+  app.use('/api/agent', require('./routes/agentRoutes.js'));
 } catch (err) {
   console.error('❌ Failed to load authRoutes:', err.message);
 }

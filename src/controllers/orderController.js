@@ -280,7 +280,7 @@ exports.getOrders = async (req, res) => {
       query.status = { $in: statusFilters };
     }
 
-    console.log("Final query:", query);
+
 
     const orders = await Order.find(query).sort({ createdAt: -1 });
     return res.status(200).json({ data: orders });
@@ -289,7 +289,6 @@ exports.getOrders = async (req, res) => {
     return res.status(500).json({ error: "Failed to fetch orders" });
   }
 };
-
 
 exports.getOrder = async (req, res) => {
   const { orderId } = req.params;
@@ -346,9 +345,12 @@ exports.confirm_Order = async (req, res) => {
 
 
     const password = userId; //
+
+    let wasPromoted = false;
     const hashedPassword = await bcrypt.hash(password, 10);
 
     if (existingUser.type === "guest") {
+      wasPromoted = true;
       await User.findOneAndUpdate(
         { userId },
         {
@@ -366,14 +368,14 @@ exports.confirm_Order = async (req, res) => {
       );
     }
 
+
+
     // Step 4: Confirm the order
     const updatedOrder = await Order.findOneAndUpdate(
       { orderId },
       updateData,
       { new: true, runValidators: true }
     );
-
-
 
     const mailHtml = `
   <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
@@ -391,8 +393,6 @@ exports.confirm_Order = async (req, res) => {
       <p>We recommend you log in and update your password for security reasons.</p>
       <p><a href="${frontendUrl}/login" style="color: #007bff;">Click here to log in</a></p>
       
-        
-    }
 
     <p>If you have any questions, feel free to reach out to our support team.</p>
 
@@ -400,14 +400,17 @@ exports.confirm_Order = async (req, res) => {
   </div>
 `;
 
+    // if already registered user not send mail 
+    if (wasPromoted) {
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM_EMAIL,
+        to: updatedOrder.email,
+        subject: `Final Quote - Order ${updatedOrder.orderId}`,
+        html: mailHtml,
+      });
+    }
 
 
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM_EMAIL,
-      to: updatedOrder.email,
-      subject: `Final Quote - Order ${updatedOrder.orderId}`,
-      html: mailHtml,
-    });
 
     res.json({
       message: "Order confirmed successfully",

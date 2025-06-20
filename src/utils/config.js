@@ -1,1 +1,1 @@
-export const frontendUrl = 'https://work-safety-backend.onrender.com';
+export const frontendUrl = 'http://192.168.29.181:3000';
