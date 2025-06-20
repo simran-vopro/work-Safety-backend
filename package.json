@@ -25,7 +25,8 @@
     "morgan": "^1.10.0",
     "multer": "^2.0.0",
     "nanoid": "^5.1.5",
-    "nodemailer": "^7.0.3"
+    "nodemailer": "^7.0.3",
+    "router": "^2.2.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
