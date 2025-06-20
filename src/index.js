@@ -22,18 +22,55 @@ mongoose.connect(process.env.MONGODB_URI).then(() => {
   console.error('MongoDB connection error:', err);
 });
 
+console.log('Running from directory:', __dirname);
+
+
 // Static assets
 app.use('/static', express.static(path.join(__dirname, '../public')));
 app.use('/static/topBanners', express.static(path.join(__dirname, '../public/topBanners')));
 
-// API Routes
-app.use('/api/categories', require('./routes/categoryRoutes.js'));
-app.use('/api/products', require('./routes/productRoutes.js'));
-app.use('/api/banner', require('./routes/bannerRoutes.js'));
-app.use('/api/cart', require('./routes/cartRoutes.js'));
-app.use('/api/order', require('./routes/orderRoutes.js'));
-app.use('/api/query', require('./routes/queryRoutes.js'));
-app.use('/api/auth', require('./routes/authRoutes.js'));
+// API Routes (wrapped in try-catch)
+try {
+  app.use('/api/categories', require('./routes/categoryRoutes.js'));
+} catch (err) {
+  console.error('❌ Failed to load categoryRoutes:', err.message);
+}
+
+try {
+  app.use('/api/products', require('./routes/productRoutes.js'));
+} catch (err) {
+  console.error('❌ Failed to load productRoutes:', err.message);
+}
+
+try {
+  app.use('/api/banner', require('./routes/bannerRoutes.js'));
+} catch (err) {
+  console.error('❌ Failed to load bannerRoutes:', err.message);
+}
+
+try {
+  app.use('/api/cart', require('./routes/cartRoutes.js'));
+} catch (err) {
+  console.error('❌ Failed to load cartRoutes:', err.message);
+}
+
+try {
+  app.use('/api/order', require('./routes/orderRoutes.js'));
+} catch (err) {
+  console.error('❌ Failed to load orderRoutes:', err.message);
+}
+
+try {
+  app.use('/api/query', require('./routes/queryRoutes.js'));
+} catch (err) {
+  console.error('❌ Failed to load queryRoutes:', err.message);
+}
+
+try {
+  app.use('/api/auth', require('./routes/authRoutes.js'));
+} catch (err) {
+  console.error('❌ Failed to load authRoutes:', err.message);
+}
 
 // Serve frontend and admin (Vite build)
 const frontendPath = path.join(__dirname, '../frontend/dist');
