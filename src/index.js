@@ -27,13 +27,13 @@ app.use('/static', express.static(path.join(__dirname, '../public')));
 app.use('/static/topBanners', express.static(path.join(__dirname, '../public/topBanners')));
 
 // API Routes
-app.use('/api/categories', require('./routes/categoryRoutes'));
-app.use('/api/products', require('./routes/productRoutes'));
-app.use('/api/banner', require('./routes/bannerRoutes'));
-app.use('/api/cart', require('./routes/cartRoutes'));
-app.use('/api/order', require('./routes/orderRoutes'));
-app.use('/api/query', require('./routes/queryRoutes'));
-app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/categories', require('./routes/categoryRoutes.js'));
+app.use('/api/products', require('./routes/productRoutes.js'));
+app.use('/api/banner', require('./routes/bannerRoutes.js'));
+app.use('/api/cart', require('./routes/cartRoutes.js'));
+app.use('/api/order', require('./routes/orderRoutes.js'));
+app.use('/api/query', require('./routes/queryRoutes.js'));
+app.use('/api/auth', require('./routes/authRoutes.js'));
 
 // Serve frontend and admin (Vite build)
 const frontendPath = path.join(__dirname, '../frontend/dist');
