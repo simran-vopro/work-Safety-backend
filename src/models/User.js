@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema(
         address: { type: String },
         city: { type: String },
         company: { type: String },
+        isActive: { type: Boolean, default: true }
     },
     { timestamps: true }
 );

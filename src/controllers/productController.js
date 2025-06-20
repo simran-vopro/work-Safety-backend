@@ -24,11 +24,15 @@ exports.getProducts = async (req, res, next) => {
     const filter = {};
 
     if (search) {
+      const isNumber = !isNaN(Number(search));
       filter.$or = [
         { Style: { $regex: search, $options: "i" } },
-        { Description: { $regex: search, $options: "i" } }
+        { Description: { $regex: search, $options: "i" } },
+        { Code: { $regex: search, $options: "i" } },
+        ...(isNumber ? [{ ISPCCombined: Number(search) }] : [])
       ];
     }
+
 
     const toObjectIdArray = (param) => {
       if (!param) return undefined;
@@ -88,8 +92,9 @@ exports.getProducts = async (req, res, next) => {
 };
 
 exports.getSingleProduct = async (req, res, next) => {
-  const { productId } = req.params;
 
+  const { productId } = req.params;
+  console.log("productId ==> ", productId);
 
   if (!productId) {
     return res.status(400).json({ error: "Missing productId" });
@@ -111,6 +116,7 @@ exports.getSingleProduct = async (req, res, next) => {
   }
 
 }
+
 
 // exports.uploadFile = async (req, res) => {
 //   try {

@@ -9,4 +9,12 @@ router.post("/login", loginValidation, authController.login);
 router.put("/edit", auth, authController.editUser);
 router.put("/change-password", auth, authController.changePassword);
 
+
+
+// Admin user management
+router.get('/users',auth, authController.getAllEndUsers);
+router.put('/user/:userId',auth, authController.editUserByAdmin);
+router.patch('/user/:userId/status',auth, authController.toggleUserStatus);
+router.delete('/user/:userId',auth, authController.deleteUser);
+
 module.exports = router;

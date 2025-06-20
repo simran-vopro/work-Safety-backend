@@ -60,6 +60,8 @@ exports.login = async (req, res) => {
     try {
         const { userIdOrEmail, password, type } = req.body;
 
+        console.log(req.body);
+
         if (!userIdOrEmail || !password || !type) {
             return res.status(400).json({ message: "User ID or Email and password are required" });
         }
@@ -87,7 +89,7 @@ exports.login = async (req, res) => {
             { expiresIn: "7d" }
         );
 
-        const data = {token, user}
+        const data = { token, user }
 
         res.status(200).json({ message: "Login successful", data });
     } catch (error) {
@@ -194,3 +196,70 @@ exports.changePassword = async (req, res) => {
 
 }
 
+exports.getAllEndUsers = async (req, res) => {
+    try {
+        const users = await User.find({ type: 'user' }).select('-password');
+        res.status(200).json({ data: users });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch users', error });
+    }
+};
+
+exports.editUserByAdmin = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const updateData = req.body;
+
+        const updatedUser = await User.findOneAndUpdate({ userId }, updateData, {
+            new: true,
+            runValidators: true,
+        }).select('-password');
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json({ message: 'User updated successfully', data: updatedUser });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to update user', error });
+    }
+};
+
+
+exports.toggleUserStatus = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { isActive } = req.body; // true or false
+
+        const updatedUser = await User.findOneAndUpdate(
+            { userId },
+            { isActive },
+            { new: true }
+        ).select('-password');
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const status = isActive ? 'enabled' : 'disabled';
+        res.json({ message: `User ${status} successfully`, data: updatedUser });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to update user status', error });
+    }
+};
+
+
+exports.deleteUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const deletedUser = await User.findOneAndDelete({ userId });
+
+        if (!deletedUser) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to delete user', error });
+    }
+};

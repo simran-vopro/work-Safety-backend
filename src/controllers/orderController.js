@@ -257,7 +257,7 @@ Work Wear Pvt. Ltd.<br />
 
 exports.getOrders = async (req, res) => {
   const userId = req.user.userId;
-  let statusFilters = req.query.status; // can be string or array
+  let statusFilters = req.query.status;
 
   try {
     const user = await User.findOne({ userId });
@@ -275,8 +275,12 @@ exports.getOrders = async (req, res) => {
       if (!Array.isArray(statusFilters)) {
         statusFilters = [statusFilters];
       }
+      // Filter out invalid values
+      statusFilters = statusFilters.filter(Boolean);
       query.status = { $in: statusFilters };
     }
+
+    console.log("Final query:", query);
 
     const orders = await Order.find(query).sort({ createdAt: -1 });
     return res.status(200).json({ data: orders });
@@ -285,6 +289,7 @@ exports.getOrders = async (req, res) => {
     return res.status(500).json({ error: "Failed to fetch orders" });
   }
 };
+
 
 exports.getOrder = async (req, res) => {
   const { orderId } = req.params;
